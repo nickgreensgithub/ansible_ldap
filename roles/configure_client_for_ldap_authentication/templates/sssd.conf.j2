@@ -1,0 +1,40 @@
+[sssd]
+config_file_version = 2
+domains = default
+debug_level=6
+
+[nss]
+debug_level=6
+
+[pam]
+offline_credentials_expiration = 60
+
+[domain/default]
+debug_level = 0x0400
+ldap_id_use_start_tls = True
+cache_credentials = True
+ldap_search_base = {{ LDAP_BASE_DN }}
+id_provider = ldap
+auth_provider = ldap
+chpass_provider = ldap
+access_provider = ldap
+sudo_provider = ldap
+ldap_uri = ldaps://{{ LDAP_DOMAIN_URI }}
+ldap_default_bind_dn = cn={{ LDAP_DEFAULT_BIND_CN }},{{ LDAP_BASE_DN }}
+ldap_default_authtok = {{ LDAP_READONLY_USER_PASSWORD }}
+ldap_tls_reqcert = try
+ldap_tls_cacert = {{ CERTS_LOCATION }}/{{ LDAP_TLS_CRT_FILENAME }}
+ldap_tls_cacertdir = {{ CERTS_LOCATION }}
+ldap_search_timeout = 50
+ldap_network_timeout = 60
+ldap_access_order = filter
+ldap_access_filter = (objectClass=posixAccount)
+
+ldap_user_search_base = ou={{ LDAP_USER_SEARCH_OU }},{{ LDAP_BASE_DN }}
+ldap_group_search_base = ou={{ LDAP_GROUP_SEARCH_OU }},{{ LDAP_BASE_DN }}
+ldap_sudo_search_base = ou={{ LDAP_SUDO_SEARCH_OU }},{{ LDAP_BASE_DN }}
+
+override_homedir = {{ LDAP_OVERRIDE_HOMEDIR_PATH }}
+override_shell = {{ LDAP_OVERRIDE_SHELL }}
+
+[sudo]

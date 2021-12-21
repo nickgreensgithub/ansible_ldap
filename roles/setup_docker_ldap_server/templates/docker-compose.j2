@@ -1,0 +1,67 @@
+version: '3.5'
+
+services:
+
+  openldap:
+    image: osixia/openldap:latest
+    restart: unless-stopped
+    ports:
+      - 389:389
+      - 636:636
+    environment:
+      TZ: {{ TIMEZONE }}
+      NODE_ENV: production
+      LDAP_ORGANISATION: {{ LDAP_ORG }}
+      LDAP_DOMAIN: {{ LDAP_DOMAIN_URI }}
+      LDAP_ADMIN_PASSWORD: '{{ LDAP_ADMIN_PASSWORD }}'
+      LDAP_TLS_VERIFY_CLIENT: try
+      #LDAP_DEBUG: 'true'
+      LDAP_TLS_CRT_FILENAME: {{ LDAP_TLS_CRT_FILENAME }}
+      LDAP_TLS_KEY_FILENAME: {{ LDAP_TLS_KEY_FILENAME }}
+      LDAP_TLS_CA_CRT_FILENAME: {{ LDAP_TLS_CA_CRT_FILENAME }}
+      LDAP_READONLY_USER_USERNAME: 'readonly'
+      LDAP_READONLY_USER_PASSWORD: '{{ LDAP_READONLY_USER_PASSWORD }}'
+      LDAP_READONLY_USER: 'true'
+
+      #LDAP_SEED_INTERNAL_SCHEMA_PATH: "/schemas"
+    container_name: "ldap"
+    command: "--copy-service"
+    volumes:
+      - {{ LDAP_DB_LOCATION }}:/var/lib/ldap
+      - {{ LDAP_CONFIG_LOCATION }}:/etc/ldap/slapd.d
+      - {{ GENERATED_CERTS_LOCATION }}:/container/service/slapd/assets/certs
+      #- {{ LDAP_SCHEMAS_LOCATION }}:/schemas
+      - {{ LDAP_SCHEMAS_LOCATION }}/sudo.schema:/container/service/slapd/assets/config/bootstrap/schema/sudo.schema
+      #- {{ LDAP_SCHEMAS_LOCATION }}/sudo.ldif:/container/service/slapd/assets/config/bootstrap/ldif/custom/sudo.ldif
+  # src : https://github.com/wheelybird/ldap-user-manager
+  # do not forget to go to setup page : http://localhost:8080/setup
+  app:
+    image: wheelybird/ldap-user-manager:oldcookies
+    container_name: "ldapmanager"
+    restart: unless-stopped
+    ports:
+      - 80:80
+      - 443:443
+    environment:
+      TZ: {{ TIMEZONE }}
+      SERVER_HOSTNAME: {{ LDAP_SERVER_IP }}
+      LDAP_URI: ldap://openldap
+      LDAP_BASE_DN: {{ LDAP_BASE_DN }} # TODO user variable
+      LDAP_ADMINS_GROUP: admins
+      LDAP_ADMIN_BIND_DN: cn=admin,{{ LDAP_BASE_DN }} # TODO user variable
+      LDAP_ADMIN_BIND_PWD: {{ LDAP_ADMIN_PASSWORD }}
+      LDAP_IGNORE_CERT_ERRORS: 'true'
+      NO_HTTPS: 'true'
+      SMTP_HOSTNAME: email
+      ACCOUNT_REQUESTS_ENABLED: 'TRUE'
+      ACCOUNT_REQUESTS_EMAIL: ndg@bio.aau.dk
+      SMTP_HOST_PORT: 1025
+  email:
+    container_name: email
+    restart: on-failure:10
+    image: jgiannuzzi/mailcatcher:latest
+    ports:
+      - 1080:1080
+      - 1025:1025
+    volumes:
+      - {{ LDAP_BASE_PATH }}/messages:/data

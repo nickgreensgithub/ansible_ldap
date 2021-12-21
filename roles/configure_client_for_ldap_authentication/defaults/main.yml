@@ -1,0 +1,2 @@
+CERTS_LOCATION: /etc/ssl/certs
+TRUSTED_CERTS_LOCATION: /usr/local/share/ca-certificates

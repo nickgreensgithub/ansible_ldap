@@ -1,0 +1,27 @@
+---
+
+- name: Copy Docker Compose file to server
+  template:
+    src: ./docker-compose.j2
+    dest: "{{ LDAP_BASE_PATH }}/docker-compose.yml"
+    owner: "{{ DOCKER_USERNAME  }}"
+    group: "docker"
+    mode: '0775'
+  become: yes
+  
+- name: Copy schemas to server
+  ansible.builtin.copy:
+    src: ./schemas/
+    dest: "{{ LDAP_SCHEMAS_LOCATION }}/"
+    owner: "{{ DOCKER_USERNAME }}"
+    group: "docker"
+    mode: '0777'  
+
+#!TODO some more variables need to be passed in, hard coded for now
+- name: Deploy Docker Compose stack
+  community.docker.docker_compose:
+    project_src: "{{ LDAP_BASE_PATH }}"
+    files:
+    - docker-compose.yml
+  become: yes
+  become_user: "{{ DOCKER_USERNAME }}"

@@ -1,0 +1,91 @@
+---
+- name: install required packages
+  apt:
+    name: 
+      - sssd
+      - libpam-sss
+      - libnss-sss
+    state: present  
+
+- name: Create sssd config
+  ansible.builtin.template:
+    src: sssd.conf.j2
+    dest: /etc/sssd/sssd.conf
+
+- name: Create nsswitch config
+  ansible.builtin.template:
+    src: nsswitch.conf.j2
+    dest: /etc/nsswitch.conf
+
+- name: Enable SSH password authentication
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^PasswordAuthentication'
+    line: "PasswordAuthentication yes"
+    state: present
+
+- name: Restart SSHD service
+  ansible.builtin.service:
+    name: sshd
+    state: restarted
+
+- name: Add LDAP server to /etc/hosts
+  become: yes
+  lineinfile:
+    dest: /etc/hosts
+    regexp: "{{ LDAP_DOMAIN_URI }}$"
+    line: "{{ LDAP_SERVER_IP }}\t\t{{ LDAP_DOMAIN_URI }}"
+    state: present
+
+- name: Get certificate from LDAP server
+  shell:
+    cmd: openssl s_client -connect {{ LDAP_SERVER_IP }}:389 -starttls ldap -showcerts < /dev/null | openssl x509 -text | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p'
+  register: certificate_value
+
+- name: Save LDAP server certificate
+  ansible.builtin.copy:
+    dest: "{{ CERTS_LOCATION }}/{{ LDAP_TLS_CRT_FILENAME }}"
+    content: "{{certificate_value.stdout}}"
+
+- name: Trust the server certificate
+  ansible.builtin.copy:
+    dest: "{{ TRUSTED_CERTS_LOCATION }}/{{ LDAP_TLS_CRT_FILENAME }}"
+    src: "{{ CERTS_LOCATION }}/{{ LDAP_TLS_CRT_FILENAME }}"
+    remote_src: yes
+  
+- name: Update certificates
+  ansible.builtin.command:
+    cmd: sudo update-ca-certificates
+
+- name: Add cert path to /etc/ldap/ldap.conf
+  ansible.builtin.lineinfile:
+    path: /etc/ldap/ldap.conf
+    regexp: '^TLS_CACERT'
+    line: "TLS_CACERT  {{ CERTS_LOCATION }}/{{ LDAP_TLS_CRT_FILENAME }}"
+
+- name: set root permissions for /etc/sssd
+  ansible.builtin.file:
+    path: /etc/sssd
+    owner: root
+    mode: 0600
+    recurse: yes
+
+- name: restart sssd service, and enable on boot
+  ansible.builtin.service:
+    name: sssd
+    state: restarted
+    enabled: yes
+
+- name: enable auto home directory creation in /etc/pam.d/common-session
+  ansible.builtin.lineinfile:
+    path: /etc/pam.d/common-session
+    regexp: 'pam_mkhomedir.so'
+    line: 'session required        pam_mkhomedir.so skel=/etc/skel/ umask=0022'
+
+- name: Install sudo-ldap
+  apt: 
+    name: sudo-ldap 
+    state: present
+  environment:
+    SUDO_FORCE_REMOVE: "yes"
+  become_user: root

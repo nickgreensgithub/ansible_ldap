@@ -1,0 +1,3 @@
+DOCKER_USERNAME: docker
+LDAP_BASE_PATH: /opt/ldap
+LDAP_SCHEMAS_LOCATION: "{{ LDAP_BASE_PATH }}/schemas"
