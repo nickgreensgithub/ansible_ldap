@@ -28,7 +28,8 @@ ldap_tls_cacertdir = {{ CERTS_LOCATION }}
 ldap_search_timeout = 50
 ldap_network_timeout = 60
 ldap_access_order = filter
-ldap_access_filter = (objectClass=posixAccount)
+ldap_access_filter = ({{ LDAP_ACCESS_FILTER }})
+
 
 ldap_user_search_base = ou={{ LDAP_USER_SEARCH_OU }},{{ LDAP_BASE_DN }}
 ldap_group_search_base = ou={{ LDAP_GROUP_SEARCH_OU }},{{ LDAP_BASE_DN }}
